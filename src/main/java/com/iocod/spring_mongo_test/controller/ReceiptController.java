@@ -1,7 +1,7 @@
 package com.iocod.spring_mongo_test.controller;
+
 import com.iocod.spring_mongo_test.model.Receipt;
 import com.iocod.spring_mongo_test.service.ReceiptService;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,12 +18,12 @@ public class ReceiptController {
     private ReceiptService receiptService;
 
     @PostMapping
-    public ResponseEntity<List<Receipt>> createReceipts(@RequestBody List<Receipt> receipts) {
+    public ResponseEntity<Receipt> createReceipt(@RequestBody Receipt receipt) {
         // Capture the start time
         long startTime = System.currentTimeMillis();
 
         try {
-            List<Receipt> savedReceipts = receiptService.saveReceipts(receipts);
+            Receipt savedReceipt = receiptService.saveReceipt(receipt);
 
             // Capture the end time
             long endTime = System.currentTimeMillis();
@@ -32,7 +32,7 @@ public class ReceiptController {
             // Log the duration
             logger.info("Time taken to process the request: {} ms", duration);
 
-            return new ResponseEntity<>(savedReceipts, HttpStatus.CREATED);
+            return new ResponseEntity<>(savedReceipt, HttpStatus.CREATED);
         } catch (Exception e) {
             // Log the error and return a 500 response
             e.printStackTrace();
@@ -45,5 +45,4 @@ public class ReceiptController {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-    
 }
