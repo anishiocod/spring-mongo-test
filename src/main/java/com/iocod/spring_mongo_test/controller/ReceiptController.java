@@ -23,14 +23,28 @@ public class ReceiptController {
     private ReceiptService receiptService;
 
     @PostMapping
-    public ResponseEntity<Receipt> createReceipt(@RequestBody byte[] binaryData) {
+    public ResponseEntity<Receipt> createReceipt(
+            @RequestBody byte[] binaryData,
+            @RequestHeader Map<String, String> headers) { // Get all headers as a map
+
         long startTime = System.currentTimeMillis();
         logger.info("Received request with binary data");
+
+        // Log all request headers
+        logger.info("Request Headers:");
+        headers.forEach((key, value) -> logger.info("{}: {}", key, value));
+
+        // Log request body details
+        logger.info("Request Body Length: {} bytes", binaryData.length);
+        logger.info("Request Body (raw): {}", new String(binaryData, StandardCharsets.UTF_8));
 
         try {
             // Parse binary data into key-value pairs
             String dataString = new String(binaryData, StandardCharsets.UTF_8);
             Map<String, String> parameters = parseWebhookData(dataString);
+
+            // Log parsed parameters
+            logger.info("Parsed Parameters: {}", parameters);
 
             // Create a new Receipt object and populate it from parsed data
             Receipt receipt = new Receipt();
@@ -40,16 +54,14 @@ public class ReceiptController {
             receipt.setTo(parameters.get("To"));
             receipt.setFrom(parameters.get("From"));
             receipt.setAccountSid(parameters.get("AccountSid"));
-            logger.info("Received Receipt SMSID: "+ receipt.getSmsSid());
-            logger.info("Received Receipt AccountID: "+ receipt.getAccountSid());
+
+            logger.info("Received Receipt SMSID: {}", receipt.getSmsSid());
+            logger.info("Received Receipt AccountID: {}", receipt.getAccountSid());
 
             // Save the receipt using the service
             Receipt savedReceipt = receiptService.saveReceipt(receipt);
             long endTime = System.currentTimeMillis();
             long duration = endTime - startTime;
-            
-            logger.info("Saved Receipt SMSID: " + receipt.getSmsSid().toString());
-            logger.info("Saved Receipt AccountID " + receipt.getAccountSid().toString());
 
             if (savedReceipt != null) {
                 logger.info("Successfully created receipt with data: {}", savedReceipt);
