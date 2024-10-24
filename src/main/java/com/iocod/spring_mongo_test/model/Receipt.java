@@ -62,5 +62,15 @@ public class Receipt {
     public void setAccountSid(String accountSid) {
         this.accountSid = accountSid;
     }
-
+    @Override
+    public String toString() {
+        return "Receipt{" +
+                "apiVersion='" + apiVersion + '\'' +
+                ", messageStatus='" + messageStatus + '\'' +
+                ", smsSid='" + smsSid + '\'' +
+                ", to='" + to + '\'' +
+                ", from='" + from + '\'' +
+                ", accountSid='" + accountSid + '\'' +
+                '}';
+    }
 }

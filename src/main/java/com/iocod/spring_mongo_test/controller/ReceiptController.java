@@ -40,13 +40,19 @@ public class ReceiptController {
             receipt.setTo(parameters.get("To"));
             receipt.setFrom(parameters.get("From"));
             receipt.setAccountSid(parameters.get("AccountSid"));
+            logger.info("Received Receipt SMSID: " + receipt.getSmsSid().toString());
+            logger.info("Received Receipt AccountID " + receipt.getAccountSid().toString());
+
 
             // Save the receipt using the service
             Receipt savedReceipt = receiptService.saveReceipt(receipt);
             long endTime = System.currentTimeMillis();
             long duration = endTime - startTime;
+            
+            logger.info("Saved Receipt SMSID: " + receipt.getSmsSid().toString());
+            logger.info("Saved Receipt AccountID " + receipt.getAccountSid().toString());
 
-            logger.info("Successfully created receipt with data: {}", receipt);
+            logger.info("Successfully created receipt with data: {}", receipt.toString()    );
             logger.info("Time taken: {} ms", duration);
             return new ResponseEntity<>(savedReceipt, HttpStatus.CREATED);
 
