@@ -40,9 +40,8 @@ public class ReceiptController {
             receipt.setTo(parameters.get("To"));
             receipt.setFrom(parameters.get("From"));
             receipt.setAccountSid(parameters.get("AccountSid"));
-            logger.info("Received Receipt SMSID: " + receipt.getSmsSid().toString());
-            logger.info("Received Receipt AccountID " + receipt.getAccountSid().toString());
-
+            logger.info("Received Receipt SMSID: "+ receipt.getSmsSid());
+            logger.info("Received Receipt AccountID: "+ receipt.getAccountSid());
 
             // Save the receipt using the service
             Receipt savedReceipt = receiptService.saveReceipt(receipt);
@@ -52,9 +51,14 @@ public class ReceiptController {
             logger.info("Saved Receipt SMSID: " + receipt.getSmsSid().toString());
             logger.info("Saved Receipt AccountID " + receipt.getAccountSid().toString());
 
-            logger.info("Successfully created receipt with data: {}", receipt.toString()    );
-            logger.info("Time taken: {} ms", duration);
-            return new ResponseEntity<>(savedReceipt, HttpStatus.CREATED);
+            if (savedReceipt != null) {
+                logger.info("Successfully created receipt with data: {}", savedReceipt);
+                logger.info("Time taken: {} ms", duration);
+                return new ResponseEntity<>(savedReceipt, HttpStatus.CREATED);
+            } else {
+                logger.error("Failed to save receipt; received null object from service");
+                return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+            }
 
         } catch (Exception e) {
             logger.error("Failed to process receipt data: {}", e.getMessage());
