@@ -1,15 +1,18 @@
 package com.iocod.spring_mongo_test.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.iocod.spring_mongo_test.model.Receipt;
 import com.iocod.spring_mongo_test.service.ReceiptService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.core.AmqpTemplate;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.nio.charset.StandardCharsets;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -22,56 +25,30 @@ public class ReceiptController {
     @Autowired
     private ReceiptService receiptService;
 
+    @Autowired
+    private AmqpTemplate amqpTemplate;
+
+    @Autowired
+    private ObjectMapper objectMapper; // Added for JSON conversion
+
     @PostMapping
-    public ResponseEntity<Receipt> createReceipt(
-            @RequestBody byte[] binaryData,
-            @RequestHeader Map<String, String> headers) { // Get all headers as a map
-
-        long startTime = System.currentTimeMillis();
+    public ResponseEntity<Void> createReceipt(@RequestBody byte[] binaryData, @RequestHeader Map<String, String> headers) {
         logger.info("Received request with binary data");
-
-        // Log all request headers
-        logger.info("Request Headers:");
-        headers.forEach((key, value) -> logger.info("{}: {}", key, value));
-
-        // Log request body details
-        logger.info("Request Body Length: {} bytes", binaryData.length);
-        logger.info("Request Body (raw): {}", new String(binaryData, StandardCharsets.UTF_8));
+        // ... (logging similar to original code)
 
         try {
-            // Parse binary data into key-value pairs
             String dataString = new String(binaryData, StandardCharsets.UTF_8);
             Map<String, String> parameters = parseWebhookData(dataString);
-
-            // Log parsed parameters
             logger.info("Parsed Parameters: {}", parameters);
 
-            // Create a new Receipt object and populate it from parsed data
-            Receipt receipt = new Receipt();
-            receipt.setApiVersion(parameters.get("ApiVersion"));
-            receipt.setMessageStatus(parameters.get("MessageStatus"));
-            receipt.setSmsSid(parameters.get("SmsSid"));
-            receipt.setTo(parameters.get("To"));
-            receipt.setFrom(parameters.get("From"));
-            receipt.setAccountSid(parameters.get("AccountSid"));
+            // Convert Map to JSON String
+            String jsonData = objectMapper.writeValueAsString(parameters);
 
-            logger.info("Received Receipt SMSID: {}", receipt.getSmsSid());
-            logger.info("Received Receipt AccountID: {}", receipt.getAccountSid());
+            // Send data to message queue
+            amqpTemplate.convertAndSend("twillio-sms", jsonData);
 
-            // Save the receipt using the service
-            Receipt savedReceipt = receiptService.saveReceipt(receipt);
-            long endTime = System.currentTimeMillis();
-            long duration = endTime - startTime;
-
-            if (savedReceipt != null) {
-                logger.info("Successfully created receipt with data: {}", savedReceipt);
-                logger.info("Time taken: {} ms", duration);
-                return new ResponseEntity<>(savedReceipt, HttpStatus.CREATED);
-            } else {
-                logger.error("Failed to save receipt; received null object from service");
-                return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-
+            logger.info("Successfully sent data to message queue");
+            return new ResponseEntity<>(HttpStatus.ACCEPTED);
         } catch (Exception e) {
             logger.error("Failed to process receipt data: {}", e.getMessage());
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -88,5 +65,36 @@ public class ReceiptController {
             }
         }
         return parameters;
+    }
+
+    // Message listener - Single consumer using @RabbitListener(exclusive = true)
+    @RabbitListener(queues = "twillio-sms", exclusive = true)
+    public void processReceiptData(String jsonData) {
+        try {
+            logger.info("Received data from message queue: {}", jsonData);
+
+            // Convert JSON String to Map
+            Map<String, String> parameters = objectMapper.readValue(jsonData, Map.class);
+
+            // Create a new Receipt object and populate it
+            Receipt receipt = new Receipt();
+            receipt.setApiVersion(parameters.get("ApiVersion"));
+            receipt.setMessageStatus(parameters.get("MessageStatus"));
+            receipt.setSmsSid(parameters.get("SmsSid"));
+            receipt.setTo(parameters.get("To"));
+            receipt.setFrom(parameters.get("From"));
+            receipt.setAccountSid(parameters.get("AccountSid"));
+
+            // Save the receipt using the service
+            Receipt savedReceipt = receiptService.saveReceipt(receipt);
+
+            if (savedReceipt != null) {
+                logger.info("Successfully created receipt with data: {}", savedReceipt);
+            } else {
+                logger.error("Failed to save receipt; received null object from service");
+            }
+        } catch (Exception e) {
+            logger.error("Failed to process receipt data: {}", e.getMessage());
+        }
     }
 }
